@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 待办 · 桌面端</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-monospace, monospace; background: #0b0c10; color: #e2e8f0; }
+    header { padding: 16px 20px; border-bottom: 1px solid #2a3144; display: flex; justify-content: space-between; align-items: center; }
+    main { padding: 16px 20px; max-width: 900px; margin: 0 auto; }
+    input, button { font: inherit; border: 1px solid #334155; background: #12141d; color: inherit; padding: 8px 10px; }
+    button { cursor: pointer; background: #06b6d4; color: #000; border-color: #06b6d4; font-weight: 700; }
+    .row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .todo { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid #2a3144; margin-bottom: 8px; background: #12141d; }
+    .todo.done .title { text-decoration: line-through; color: #64748b; }
+    .meta { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+    #login-panel { border: 1px solid #2a3144; padding: 16px; margin-bottom: 16px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>AI TODO · RUST DESKTOP</strong>
+    <span id="status">未登录</span>
+  </header>
+  <main>
+    <section id="login-panel">
+      <div class="row">
+        <input id="api-base" value="http://127.0.0.1:3001" placeholder="API 地址" style="flex:1" />
+      </div>
+      <div class="row">
+        <input id="email" placeholder="邮箱" style="flex:1" autocomplete="username" />
+        <input id="password" type="password" placeholder="密码" style="flex:1" autocomplete="current-password" />
+        <button id="login-btn">登录</button>
+      </div>
+    </section>
+
+    <section id="app-panel" class="hidden">
+      <div class="row">
+        <input id="ai-prompt" placeholder="对 AI 说：明天下午3点开会 / 把开会标记完成..." style="flex:1" maxlength="1000" />
+        <button id="ai-btn">AI 执行</button>
+        <button id="refresh-btn">刷新</button>
+      </div>
+      <div id="ai-result" class="meta"></div>
+      <div id="todo-list"></div>
+    </section>
+  </main>
+  <script type="module">
+    const invoke = window.__TAURI__?.core?.invoke;
+    const $ = (id) => document.getElementById(id);
+
+    function el(tag, props = {}, children = []) {
+      const node = document.createElement(tag);
+      Object.entries(props).forEach(([k, v]) => {
+        if (k === 'className') node.className = v;
+        else if (k === 'text') node.textContent = v;
+        else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
+        else if (k === 'checked') node.checked = v;
+        else node.setAttribute(k, v);
+      });
+      children.forEach((c) => node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+      return node;
+    }
+
+    async function login() {
+      await invoke('set_api_base', { url: $('api-base').value.trim() });
+      await invoke('login', {
+        email: $('email').value.trim(),
+        password: $('password').value,
+      });
+      $('password').value = '';
+      $('status').textContent = '已登录';
+      $('login-panel').classList.add('hidden');
+      $('app-panel').classList.remove('hidden');
+      await loadTodos();
+    }
+
+    async function loadTodos() {
+      const todos = await invoke('fetch_todos');
+      const list = $('todo-list');
+      list.replaceChildren();
+      todos.forEach((t) => {
+        const checkbox = el('input', {
+          type: 'checkbox',
+          checked: !!t.completed,
+          onChange: async () => {
+            await invoke('toggle_todo', { id: t.id });
+            await loadTodos();
+          },
+        });
+        if (t.completed) checkbox.checked = true;
+        const card = el('div', { className: `todo${t.completed ? ' done' : ''}` }, [
+          checkbox,
+          el('div', {}, [
+            el('div', { className: 'title', text: t.title || '' }),
+            el('div', {
+              className: 'meta',
+              text: `${t.priority || ''} · ${t.category || ''}${t.due_date ? ' · ' + t.due_date : ''}`,
+            }),
+          ]),
+        ]);
+        list.appendChild(card);
+      });
+    }
+
+    $('login-btn').addEventListener('click', login);
+    $('refresh-btn').addEventListener('click', loadTodos);
+    $('ai-btn').addEventListener('click', async () => {
+      const prompt = $('ai-prompt').value.trim();
+      if (!prompt) return;
+      const res = await invoke('send_ai_command', { prompt });
+      $('ai-result').textContent = res.aiResult?.message || 'AI 已处理';
+      $('ai-prompt').value = '';
+      await loadTodos();
+    });
+  </script>
+</body>
+</html>

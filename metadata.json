@@ -1,0 +1,6 @@
+{
+  "name": "Cross-Platform AI Todo",
+  "description": "简洁现代的跨平台待办事项应用，支持 Web(React)、桌面端(Rust)、移动端(UniApp)多端架构与全功能后端分离，配备 Gemini AI 自然语言待办智能解析与执行助手。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

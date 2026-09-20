@@ -1,0 +1,18 @@
+{
+  "name": "ai-todo-mobile",
+  "version": "1.0.0",
+  "description": "AI 跨平台待办 UniApp 客户端 (iOS / Android)",
+  "main": "main.js",
+  "scripts": {
+    "dev:h5": "uni",
+    "build:h5": "uni build"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-4010520240507001",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@dcloudio/vite-plugin-uni": "3.0.0-4010520240507001",
+    "vite": "^5.2.8"
+  }
+}

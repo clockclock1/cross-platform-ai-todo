@@ -1,0 +1,20 @@
+{
+  "name": "AI 跨平台待办",
+  "appid": "__UNI__AITODO",
+  "description": "简洁跨平台 AI 待办 (iOS & Android)",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "distribute": {
+      "android": {
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+          "<uses-permission android:name=\"android.permission.VIBRATE\"/>"
+        ]
+      },
+      "ios": {}
+    }
+  }
+}

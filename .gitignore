@@ -1,0 +1,14 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.db-*
+*.zip
+cross-platform-ai-todo.zip
