@@ -66,7 +66,9 @@ async function extractTarGz(archive, destDir) {
 
 async function extractZip(archive, destDir) {
   mkdirSync(destDir, { recursive: true });
-  execFileSync('tar', ['-xf', archive, '-C', destDir], { stdio: 'inherit' });
+  // On Windows, GNU tar treats "C:" as a remote host unless --force-local is set
+  const args = process.platform === 'win32' ? ['--force-local', '-xf', archive, '-C', destDir] : ['-xf', archive, '-C', destDir];
+  execFileSync('tar', args, { stdio: 'inherit' });
 }
 
 function run(cmd, args, opts = {}) {
@@ -223,7 +225,9 @@ async function main() {
   const zipName = `ai-todo-server-${args.target}.zip`;
   const zipPath = path.join(args.outdir, zipName);
   rmSync(zipPath, { force: true });
-  run('tar', ['-a', '-cf', zipPath, '-C', stagingDir, '.']);
+  run('tar', process.platform === 'win32'
+    ? ['--force-local', '-a', '-cf', zipPath, '-C', stagingDir, '.']
+    : ['-a', '-cf', zipPath, '-C', stagingDir, '.']);
 
   rmSync(work, { recursive: true, force: true });
   console.log('Wrote', finalBin);
