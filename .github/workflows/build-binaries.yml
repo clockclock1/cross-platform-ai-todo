@@ -16,30 +16,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Native / well-supported targets only (Tauri needs platform WebView toolchains)
           - name: windows-amd64
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact: ai-todo-desktop-windows-amd64
-          - name: windows-arm64
-            os: windows-latest
-            target: aarch64-pc-windows-msvc
-            artifact: ai-todo-desktop-windows-arm64
+            artifact: ai-todo-desktop-windows-amd64.exe
+            binary: ai-todo-desktop.exe
           - name: linux-amd64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact: ai-todo-desktop-linux-amd64
-          - name: linux-arm64
-            os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            artifact: ai-todo-desktop-linux-arm64
-          - name: macos-amd64
-            os: macos-latest
-            target: x86_64-apple-darwin
-            artifact: ai-todo-desktop-macos-amd64
+            binary: ai-todo-desktop
           - name: macos-arm64
             os: macos-latest
             target: aarch64-apple-darwin
             artifact: ai-todo-desktop-macos-arm64
+            binary: ai-todo-desktop
+          - name: macos-amd64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: ai-todo-desktop-macos-amd64
+            binary: ai-todo-desktop
 
     steps:
       - name: Checkout
@@ -54,10 +51,6 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf
-
-      - name: Install Linux arm64 linker
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -75,25 +68,19 @@ jobs:
       - name: Build desktop executable
         shell: bash
         working-directory: desktop/src-tauri
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: |
           mkdir -p ../../dist
-          cargo tauri build --target "${{ matrix.target }}" --verbose --bundles app
-          bundle_dir="target/${{ matrix.target }}/release/bundle"
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            artifact=$(find "$bundle_dir" -name '*.exe' | head -n 1)
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            artifact=$(find "$bundle_dir" -name '*.app' -o -name '*.dmg' | head -n 1)
-          else
-            artifact=$(find "$bundle_dir" -type f -executable | head -n 1)
-          fi
-          if [[ -z "$artifact" ]]; then
-            echo "No bundle artifact found under $bundle_dir" >&2
-            find "$bundle_dir" || true
+          # Build release binary (+ default platform bundles when available)
+          cargo tauri build --target "${{ matrix.target }}" --verbose
+          src="target/${{ matrix.target }}/release/${{ matrix.binary }}"
+          if [[ ! -f "$src" ]]; then
+            echo "Missing binary: $src" >&2
+            ls -la "target/${{ matrix.target }}/release" || true
             exit 1
           fi
-          cp -R "$artifact" "../../dist/${{ matrix.artifact }}"
+          cp "$src" "../../dist/${{ matrix.artifact }}"
+          chmod +x "../../dist/${{ matrix.artifact }}" || true
+          ls -lh "../../dist/${{ matrix.artifact }}"
 
       - name: Upload executable artifact
         uses: actions/upload-artifact@v4

@@ -207,9 +207,11 @@ docker run -d -p 3000:3000 -v ai-todo-data:/app/data \
 
 发布 GitHub **Release** 后，`build-binaries.yml` 自动构建并附件：
 
-- `ai-todo-desktop-windows-amd64` / `arm64`
-- `ai-todo-desktop-linux-amd64` / `arm64`
-- `ai-todo-desktop-macos-amd64` / `arm64`
+- `ai-todo-desktop-windows-amd64.exe`
+- `ai-todo-desktop-linux-amd64`
+- `ai-todo-desktop-macos-arm64` / `macos-amd64`
+
+（Tauri 依赖各平台 WebView，CI 仅构建原生可稳定交叉的目标。）
 
 本地开发：
 
