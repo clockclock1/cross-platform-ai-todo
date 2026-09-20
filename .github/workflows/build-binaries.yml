@@ -9,14 +9,76 @@ permissions:
   contents: write
 
 jobs:
-  build-desktop:
-    name: ${{ matrix.name }}
+  build-server:
+    name: server-${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Native / well-supported targets only (Tauri needs platform WebView toolchains)
+          - name: windows-amd64
+            os: windows-latest
+            target: windows-amd64
+          - name: windows-arm64
+            os: windows-latest
+            target: windows-arm64
+          - name: linux-amd64
+            os: ubuntu-latest
+            target: linux-amd64
+          - name: linux-arm64
+            os: ubuntu-latest
+            target: linux-arm64
+          - name: macos-amd64
+            os: macos-latest
+            target: macos-amd64
+          - name: macos-arm64
+            os: macos-latest
+            target: macos-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web + server bundle
+        run: npm run build
+
+      - name: Package SEA executable
+        shell: bash
+        run: |
+          node scripts/package-server-sea.mjs --target "${{ matrix.target }}" --outdir dist-bin
+          ls -lh dist-bin
+
+      - name: Upload server artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.name }}
+          path: |
+            dist-bin/ai-todo-server-${{ matrix.target }}*
+          if-no-files-found: error
+
+      - name: Attach server artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            dist-bin/ai-todo-server-${{ matrix.target }}*
+
+  build-desktop:
+    name: desktop-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - name: windows-amd64
             os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -70,7 +132,6 @@ jobs:
         working-directory: desktop/src-tauri
         run: |
           mkdir -p ../../dist
-          # Build release binary (+ default platform bundles when available)
           cargo tauri build --target "${{ matrix.target }}" --verbose
           src="target/${{ matrix.target }}/release/${{ matrix.binary }}"
           if [[ ! -f "$src" ]]; then
@@ -85,7 +146,7 @@ jobs:
       - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}
+          name: desktop-${{ matrix.name }}
           path: dist/${{ matrix.artifact }}
           if-no-files-found: error
 

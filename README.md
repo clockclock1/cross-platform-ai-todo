@@ -207,6 +207,17 @@ docker run -d -p 3000:3000 -v ai-todo-data:/app/data \
 
 发布 GitHub **Release** 后，`build-binaries.yml` 自动构建并附件：
 
+**服务端（Node SEA 独立可执行文件，含 Web 资源 zip）**
+
+- `ai-todo-server-windows-amd64.exe` / `windows-arm64.exe`
+- `ai-todo-server-linux-amd64` / `linux-arm64`
+- `ai-todo-server-macos-amd64` / `macos-arm64`
+- 对应 `ai-todo-server-*.zip`（可执行文件 + `web/` 前端 + `.env.example`）
+
+解压 zip 后在目录内直接运行即可（数据写入 `./data`）。
+
+**桌面端（Tauri）**
+
 - `ai-todo-desktop-windows-amd64.exe`
 - `ai-todo-desktop-linux-amd64`
 - `ai-todo-desktop-macos-arm64` / `macos-amd64`
@@ -253,7 +264,7 @@ cargo tauri dev
 | Workflow | 触发 | 作用 |
 |----------|------|------|
 | [`ci.yml`](.github/workflows/ci.yml) | push / PR | Web 后端 `lint` + `build`；桌面端 `cargo check` |
-| [`build-binaries.yml`](.github/workflows/build-binaries.yml) | Release published | 六平台 Tauri 桌面安装包 → Release 附件 |
+| [`build-binaries.yml`](.github/workflows/build-binaries.yml) | Release published | 服务端 6 平台 SEA 可执行文件 + 桌面端 Tauri 安装包 → Release 附件 |
 | [`docker.yml`](.github/workflows/docker.yml) | Release published | 构建并推送 `ghcr.io` 多架构镜像 |
 
 **发布桌面 / Docker 镜像**：在 GitHub 创建 Release（如 `v1.0.0`）即可触发构建。

@@ -1,19 +1,38 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
+import * as sea from 'node:sea';
 import authRoutes from './backend/routes/auth.js';
 import todoRoutes from './backend/routes/todos.js';
 import adminRoutes from './backend/routes/admin.js';
 import aiRoutes from './backend/routes/ai.js';
 import { getSettings } from './backend/store.js';
 
+function resolveAppRoot() {
+  if (process.env.AI_TODO_ROOT) return path.resolve(process.env.AI_TODO_ROOT);
+  if (typeof sea.isSea === 'function' && sea.isSea()) {
+    return path.dirname(process.execPath);
+  }
+  return process.cwd();
+}
+
+const APP_ROOT = resolveAppRoot();
+if (typeof sea.isSea === 'function' && sea.isSea()) {
+  try {
+    process.chdir(APP_ROOT);
+  } catch {
+    /* ignore */
+  }
+  process.env.AI_TODO_ROOT = APP_ROOT;
+}
+dotenv.config({ path: path.join(APP_ROOT, '.env') });
 dotenv.config();
 
 const API_ONLY = process.env.API_ONLY === '1' || process.argv.includes('--api-only');
-const IS_PROD = process.env.NODE_ENV === 'production';
+const IS_PROD = process.env.NODE_ENV === 'production' || (typeof sea.isSea === 'function' && sea.isSea());
 
 function parseCorsOrigins() {
   const fromEnv = process.env.CORS_ORIGINS || getSettings().apiConfig.corsOrigins || '';
@@ -26,7 +45,7 @@ function parseCorsOrigins() {
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || (API_ONLY ? 3001 : 3000);
-  const HOST = process.env.HOST || (IS_PROD ? '127.0.0.1' : '0.0.0.0');
+  const HOST = process.env.HOST || (typeof sea.isSea === 'function' && sea.isSea() ? '0.0.0.0' : IS_PROD ? '127.0.0.1' : '0.0.0.0');
 
   if (process.env.TRUST_PROXY === '1') {
     app.set('trust proxy', 1);
@@ -106,14 +125,24 @@ async function startServer() {
       });
     });
   } else if (!IS_PROD) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    // Prefer bundled web/ next to SEA binary; fall back to dist/ in Node deployments
+    const candidates = [path.join(APP_ROOT, 'web'), path.join(APP_ROOT, 'dist')];
+    const distPath = candidates.find((p) => fs.existsSync(path.join(p, 'index.html')));
+    if (!distPath) {
+      console.warn('[AI Todo] 未找到前端静态资源（web/ 或 dist/），以 API 模式提供服务');
+      app.get('/', (_req, res) => {
+        res.json({ name: 'AI Todo API', mode: 'production', health: '/api/health', hint: 'Place web/ beside the binary' });
+      });
+    } else {
+      app.use(express.static(distPath));
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
   app.listen(PORT, HOST, () => {

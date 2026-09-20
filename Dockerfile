@@ -19,9 +19,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r aitodo && useradd -r -g aitodo aitodo
 
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
 COPY --from=builder /app/dist ./dist
 
 RUN mkdir -p /app/data && chown -R aitodo:aitodo /app

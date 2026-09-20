@@ -10,5 +10,5 @@ coverage/
 data/
 *.db
 *.db-*
-*.zip
-cross-platform-ai-todo.zip
+.sea-work/
+dist-bin/
