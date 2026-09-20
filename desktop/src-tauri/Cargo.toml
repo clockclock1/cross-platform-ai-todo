@@ -1,6 +1,6 @@
 [package]
 name = "ai-todo-desktop"
-version = "1.0.3"
+version = "1.0.4"
 description = "Cross-Platform AI Todo Desktop Client"
 edition = "2021"
 

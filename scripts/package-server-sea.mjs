@@ -66,9 +66,19 @@ async function extractTarGz(archive, destDir) {
 
 async function extractZip(archive, destDir) {
   mkdirSync(destDir, { recursive: true });
-  // On Windows, GNU tar treats "C:" as a remote host unless --force-local is set
-  const args = process.platform === 'win32' ? ['--force-local', '-xf', archive, '-C', destDir] : ['-xf', archive, '-C', destDir];
-  execFileSync('tar', args, { stdio: 'inherit' });
+  if (process.platform === 'win32') {
+    // Git Bash tar cannot list zip archives; bsdtar/PowerShell can
+    const ps = process.env.SystemRoot
+      ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+      : 'powershell.exe';
+    execFileSync(
+      ps,
+      ['-NoProfile', '-Command', `Expand-Archive -Force -LiteralPath '${archive}' -DestinationPath '${destDir}'`],
+      { stdio: 'inherit' }
+    );
+    return;
+  }
+  execFileSync('tar', ['-xf', archive, '-C', destDir], { stdio: 'inherit' });
 }
 
 function run(cmd, args, opts = {}) {
@@ -225,9 +235,18 @@ async function main() {
   const zipName = `ai-todo-server-${args.target}.zip`;
   const zipPath = path.join(args.outdir, zipName);
   rmSync(zipPath, { force: true });
-  run('tar', process.platform === 'win32'
-    ? ['--force-local', '-a', '-cf', zipPath, '-C', stagingDir, '.']
-    : ['-a', '-cf', zipPath, '-C', stagingDir, '.']);
+  if (process.platform === 'win32') {
+    const ps = process.env.SystemRoot
+      ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+      : 'powershell.exe';
+    execFileSync(
+      ps,
+      ['-NoProfile', '-Command', `Compress-Archive -Force -Path (Join-Path '${stagingDir.replace(/'/g, "''")}' '*') -DestinationPath '${zipPath.replace(/'/g, "''")}'`],
+      { stdio: 'inherit' }
+    );
+  } else {
+    run('tar', ['-a', '-cf', zipPath, '-C', stagingDir, '.']);
+  }
 
   rmSync(work, { recursive: true, force: true });
   console.log('Wrote', finalBin);
